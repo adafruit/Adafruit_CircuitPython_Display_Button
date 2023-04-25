@@ -21,17 +21,23 @@ Implementation Notes
 
 """
 
+try:
+    from typing import Optional, Union, List, Any
+    from fontio import FontProtocol  # type: ignore
+except ImportError:
+    pass
+
 from micropython import const
-import displayio
-from adafruit_display_text.label import Label
-from adafruit_display_shapes.rect import Rect
-from adafruit_display_shapes.roundrect import RoundRect
+import displayio  # type: ignore
+from adafruit_display_text.label import Label  # type: ignore
+from adafruit_display_shapes.rect import Rect  # type: ignore
+from adafruit_display_shapes.roundrect import RoundRect  # type: ignore
 
 __version__ = "0.0.0+auto.0"
 __repo__ = "https://github.com/adafruit/Adafruit_CircuitPython_Display_Button.git"
 
 
-def _check_color(color):
+def _check_color(color: Optional[Union[int, tuple[int, int, int]]]) -> Optional[int]:
     # if a tuple is supplied, convert it to a RGB number
     if isinstance(color, tuple):
         r, g, b = color
@@ -59,12 +65,68 @@ class Button(displayio.Group):
     :param selected_outline: Inverts the outline color.
     :param selected_label: Inverts the label color.
     """
+    RECT: int = const(0)
+    ROUNDRECT: int = const(1)
+    SHADOWRECT: int = const(2)
+    SHADOWROUNDRECT: int = const(3)
 
-    def _empty_self_group(self):
+    def __init__(
+        self,
+        *,
+        x: int,
+        y: int,
+        width: int,
+        height: int,
+        name: Optional[str] = None,
+        style: int = RECT,
+        fill_color: Optional[int] = 0xFFFFFF,
+        outline_color: Optional[int] = 0x0,
+        label: Optional[Label] = None,
+        label_font: Optional[FontProtocol] = None,
+        label_color: Optional[int] = 0x0,
+        selected_fill: Optional[Union[int, tuple[int, int, int]]] = None,
+        selected_outline: Optional[Union[int, tuple[int, int, int]]] = None,
+        selected_label: Optional[Union[int, tuple[int, int, int]]] = None
+    ):
+        super().__init__(x=x, y=y)
+        self.x = x
+        self.y = y
+        self._width = width
+        self._height = height
+        self._font = label_font
+        self._selected = False
+        self.name = name
+        self._label = label
+        self.body = self.fill = self.shadow = None
+        self.style = style
+
+        self._fill_color = _check_color(fill_color)
+        self._outline_color = _check_color(outline_color)
+        self._label_color = label_color
+        self._label_font = label_font
+        # Selecting inverts the button colors!
+        self._selected_fill = _check_color(selected_fill)
+        self._selected_outline = _check_color(selected_outline)
+        self._selected_label = _check_color(selected_label)
+
+        if self.selected_fill is None and fill_color is not None:
+            assert self._fill_color is not None
+            self.selected_fill = (~self._fill_color) & 0xFFFFFF
+        if self.selected_outline is None and outline_color is not None:
+            assert self._outline_color is not None
+            self.selected_outline = (~self._outline_color) & 0xFFFFFF
+
+        self._create_body()
+        if self.body:
+            self.append(self.body)
+
+        self.label = label
+
+    def _empty_self_group(self) -> None:
         while len(self) > 0:
             self.pop()
 
-    def _create_body(self):
+    def _create_body(self) -> None:
         if (self.outline_color is not None) or (self.fill_color is not None):
             if self.style == Button.RECT:
                 self.body = Rect(
@@ -118,68 +180,14 @@ class Button(displayio.Group):
             if self.shadow:
                 self.append(self.shadow)
 
-    RECT = const(0)
-    ROUNDRECT = const(1)
-    SHADOWRECT = const(2)
-    SHADOWROUNDRECT = const(3)
-
-    def __init__(
-        self,
-        *,
-        x,
-        y,
-        width,
-        height,
-        name=None,
-        style=RECT,
-        fill_color=0xFFFFFF,
-        outline_color=0x0,
-        label=None,
-        label_font=None,
-        label_color=0x0,
-        selected_fill=None,
-        selected_outline=None,
-        selected_label=None
-    ):
-        super().__init__(x=x, y=y)
-        self.x = x
-        self.y = y
-        self._width = width
-        self._height = height
-        self._font = label_font
-        self._selected = False
-        self.name = name
-        self._label = label
-        self.body = self.fill = self.shadow = None
-        self.style = style
-
-        self._fill_color = _check_color(fill_color)
-        self._outline_color = _check_color(outline_color)
-        self._label_color = label_color
-        self._label_font = label_font
-        # Selecting inverts the button colors!
-        self._selected_fill = _check_color(selected_fill)
-        self._selected_outline = _check_color(selected_outline)
-        self._selected_label = _check_color(selected_label)
-
-        if self.selected_fill is None and fill_color is not None:
-            self.selected_fill = (~self._fill_color) & 0xFFFFFF
-        if self.selected_outline is None and outline_color is not None:
-            self.selected_outline = (~self._outline_color) & 0xFFFFFF
-
-        self._create_body()
-        if self.body:
-            self.append(self.body)
-
-        self.label = label
-
     @property
-    def label(self):
+    def label(self) -> Optional[Union[Any, str]]:
         """The text label of the button"""
+        assert self._label is not None
         return self._label.text
 
     @label.setter
-    def label(self, newtext):
+    def label(self, newtext: Optional[str]) -> None:
         if self._label and self and (self[-1] == self._label):
             self.pop()
 
@@ -208,12 +216,12 @@ class Button(displayio.Group):
             self.selected_label = (~self._label_color) & 0xFFFFFF
 
     @property
-    def selected(self):
+    def selected(self) -> bool:
         """Selected inverts the colors."""
         return self._selected
 
     @selected.setter
-    def selected(self, value):
+    def selected(self, value: bool) -> None:
         if value == self._selected:
             return  # bail now, nothing more to do
         self._selected = value
@@ -233,7 +241,7 @@ class Button(displayio.Group):
             self._label.color = new_label
 
     @property
-    def group(self):
+    def group(self) -> "Button":
         """Return self for compatibility with old API."""
         print(
             "Warning: The group property is being deprecated. "
@@ -242,7 +250,7 @@ class Button(displayio.Group):
         )
         return self
 
-    def contains(self, point):
+    def contains(self, point: List[int]) -> bool:
         """Used to determine if a point is contained within a button. For example,
         ``button.contains(touch)`` where ``touch`` is the touch point on the screen will allow for
         determining that a button has been touched.
@@ -252,75 +260,90 @@ class Button(displayio.Group):
         )
 
     @property
-    def fill_color(self):
+    def fill_color(self) -> Optional[int]:
         """The fill color of the button body"""
         return self._fill_color
 
     @fill_color.setter
-    def fill_color(self, new_color):
+    def fill_color(self, new_color: Optional[Union[int, tuple[int, int, int]]]) -> None:
         self._fill_color = _check_color(new_color)
         if not self.selected:
+            assert self.body is not None
             self.body.fill = self._fill_color
 
     @property
-    def outline_color(self):
+    def outline_color(self) -> Optional[int]:
         """The outline color of the button body"""
         return self._outline_color
 
     @outline_color.setter
-    def outline_color(self, new_color):
+    def outline_color(
+        self, new_color: Optional[Union[int, tuple[int, int, int]]]
+    ) -> None:
         self._outline_color = _check_color(new_color)
         if not self.selected:
+            assert self.body is not None
             self.body.outline = self._outline_color
 
     @property
-    def selected_fill(self):
+    def selected_fill(self) -> Optional[int]:
         """The fill color of the button body when selected"""
         return self._selected_fill
 
     @selected_fill.setter
-    def selected_fill(self, new_color):
+    def selected_fill(
+        self, new_color: Optional[Union[int, tuple[int, int, int]]]
+    ) -> None:
         self._selected_fill = _check_color(new_color)
         if self.selected:
+            assert self.body is not None
             self.body.fill = self._selected_fill
 
     @property
-    def selected_outline(self):
+    def selected_outline(self) -> Optional[int]:
         """The outline color of the button body when selected"""
         return self._selected_outline
 
     @selected_outline.setter
-    def selected_outline(self, new_color):
+    def selected_outline(
+        self, new_color: Optional[Union[int, tuple[int, int, int]]]
+    ) -> None:
         self._selected_outline = _check_color(new_color)
         if self.selected:
+            assert self.body is not None
             self.body.outline = self._selected_outline
 
     @property
-    def selected_label(self):
+    def selected_label(self) -> Optional[int]:
         """The font color of the button when selected"""
         return self._selected_label
 
     @selected_label.setter
-    def selected_label(self, new_color):
+    def selected_label(
+        self, new_color: Optional[Union[int, tuple[int, int, int]]]
+    ) -> None:
         self._selected_label = _check_color(new_color)
 
     @property
-    def label_color(self):
+    def label_color(self) -> Optional[int]:
         """The font color of the button"""
         return self._label_color
 
     @label_color.setter
-    def label_color(self, new_color):
+    def label_color(
+        self, new_color: Optional[Union[int, tuple[int, int, int]]]
+    ) -> None:
         self._label_color = _check_color(new_color)
+        assert self._label is not None
         self._label.color = self._label_color
 
     @property
-    def width(self):
+    def width(self) -> int:
         """The width of the button"""
         return self._width
 
     @width.setter
-    def width(self, new_width):
+    def width(self, new_width: int) -> None:
         self._width = new_width
         self._empty_self_group()
         self._create_body()
@@ -329,12 +352,12 @@ class Button(displayio.Group):
         self.label = self.label
 
     @property
-    def height(self):
+    def height(self) -> int:
         """The height of the button"""
         return self._height
 
     @height.setter
-    def height(self, new_height):
+    def height(self, new_height: int) -> None:
         self._height = new_height
         self._empty_self_group()
         self._create_body()
@@ -342,7 +365,7 @@ class Button(displayio.Group):
             self.append(self.body)
         self.label = self.label
 
-    def resize(self, new_width, new_height):
+    def resize(self, new_width: int, new_height: int) -> None:
         """Resize the button to the new width and height given
         :param new_width int the desired width
         :param new_height int the desired height
