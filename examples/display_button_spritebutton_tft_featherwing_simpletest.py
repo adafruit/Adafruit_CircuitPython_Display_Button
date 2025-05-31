@@ -6,6 +6,7 @@ import adafruit_stmpe610  # TFT Featherwing V1 touch driver
 import board
 import digitalio
 import displayio
+import fourwire
 import terminalio
 from adafruit_hx8357 import HX8357  # TFT Featherwing display driver
 
@@ -20,7 +21,7 @@ DISPLAY_HEIGHT = 320
 spi = board.SPI()
 tft_cs = board.D9
 tft_dc = board.D10
-display_bus = displayio.FourWire(spi, command=tft_dc, chip_select=tft_cs)
+display_bus = fourwire.FourWire(spi, command=tft_dc, chip_select=tft_cs)
 display = HX8357(display_bus, width=DISPLAY_WIDTH, height=DISPLAY_HEIGHT)
 display.rotation = 0
 _touch_flip = (False, True)
