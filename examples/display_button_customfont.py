@@ -160,7 +160,7 @@ while True:
         print(p)
         for i, b in enumerate(buttons):
             if b.contains(p):
-                print("Button %d pressed" % i)
+                print(f"Button {i} pressed")
                 b.selected = True
             else:
                 b.selected = False
